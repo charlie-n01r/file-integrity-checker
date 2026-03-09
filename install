@@ -1,0 +1,18 @@
+#!/usr/bin/env zsh
+set -e
+
+DATA_DIR="$HOME/.local/share/hashcheck"
+DB="$DATA_DIR/hashes.db"
+
+mkdir -p "$DATA_DIR"
+
+chmod 700 "$DATA_DIR"
+
+sqlite3 "$DB" <<EOF
+CREATE TABLE IF NOT EXISTS files (
+    path TEXT PRIMARY KEY,
+    hash BLOB NOT NULL
+);
+EOF
+
+chmod 600 "$DB"

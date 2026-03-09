@@ -1,0 +1,27 @@
+{
+  "name": "File Integrity Checker",
+  "image": "mcr.microsoft.com/devcontainers/base:bookworm",
+  
+  "features": {
+    "ghcr.io/devcontainers/features/rust:1": {}
+  },
+
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "zsh"
+      },
+      "extensions": [
+        "rust-lang.rust-analyzer",
+        "tamasfe.even-better-toml",
+        "vadimcn.vscode-lldb",
+        "usernamehw.errorlens",
+        "bierner.docs-view",
+        "beardedbear.beardedicons",
+        "mhutchie.git-graph",
+        "omthemes.omthemes"
+      ]
+    }
+  },
+  "postCreateCommand": "zsh .devcontainer/post-create"
+}

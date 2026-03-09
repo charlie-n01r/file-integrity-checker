@@ -1,0 +1,7 @@
+#!/usr/bin/env zsh
+set -e
+
+sudo apt update
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s --y
+rustup completions zsh > ~/.zfunc/_rustup
+sudo apt install sqlite3 libsqlite3-dev
