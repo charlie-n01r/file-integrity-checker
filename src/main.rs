@@ -1,5 +1,6 @@
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
+use sha2::{Sha256, Digest};
 
 #[derive(Parser)]
 #[command(name = "integrity-check", version = None)]
@@ -30,12 +31,15 @@ enum Commands {
 
 fn main() {
     let cli = CLI::parse();
+    calculate_hash(b"lol".to_vec());
 
+    /*
     match cli.command {
         Commands::Init { path } => init(path),
         Commands::Update { path } => update(path),
         Commands::Check { path } => check(path),
     }
+    */
 }
 
 fn init(path: PathBuf) {
@@ -48,4 +52,12 @@ fn update(path: PathBuf) {
 
 fn check(path: PathBuf) {
     println!("Checking hashes for {:?}", path);
+}
+
+fn calculate_hash(contents: Vec<u8>) {
+    let hash = Sha256::digest(contents);
+    let hex: String = hash.iter()
+        .map(|b| format!("{:02x}", b))
+        .collect();
+    println!("{hex:?}");
 }
