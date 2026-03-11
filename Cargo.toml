@@ -4,8 +4,10 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+chrono = "0.4.44"
 clap = { version = "4.5.60", features = ["derive"] }
-env_logger = "0.11.9"
 libsqlite3-sys = "0.36.0"
-log = "0.4.29"
 sha2 = "0.10.9"
+tracing = "0.1.44"
+tracing-appender = "0.2.4"
+tracing-subscriber = { version = "0.3.22", features = ["json"] }

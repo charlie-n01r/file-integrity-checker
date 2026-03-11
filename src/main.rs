@@ -1,8 +1,10 @@
+use std::os::unix::fs::OpenOptionsExt;
+use tracing_subscriber::fmt;
+use tracing::{info, error};
 use clap::{Parser, Subcommand};
 use std::path::{Path, PathBuf};
 use sha2::{Sha256, Digest};
-use env_logger;
-
+use std::fs::OpenOptions;
 use std::io;
 use std::fs;
 
@@ -33,35 +35,65 @@ enum Commands {
     },
 }
 
-fn main() -> io::Result<()> {
-    let cli = CLI::parse();
-
-    match cli.command {
-        Commands::Init { path } => for_each_file(&path, &mut init),
-        Commands::Update { path } => for_each_file(&path, &mut update),
-        Commands::Check { path } => for_each_file(&path, &mut check),
-    }
-}
-
+/// CLI Subcommands
 fn init(path: &Path) -> io::Result<()> {
-    println!("Initializing hashes for {:?}", path);
+    info!("Hash calculated for {path:?}");
     let hash = calculate_hash(path);
     let hex: String = hash.iter()
         .map(|b| format!("{:02x}", b))
         .collect();
-    println!("{hex}");
+    info!("SHA256 value: {hex}");
 
     Ok(())
 }
 
 fn update(path: &Path) -> io::Result<()> {
-    println!("Updating hashes for {:?}", path);
+    info!("Updating hashes for {path:?}");
     Ok(())
 }
 
 fn check(path: &Path) -> io::Result<()> {
-    println!("Checking hashes for {:?}", path);
+    info!("Checking hashes for {path:?}");
     Ok(())
+}
+
+fn main() {
+    // Create today's log file and enforce permissions
+    let today = chrono::Local::now().format("%Y-%m-%d");
+    let log_name = format!("logs/{}-log.json", today);
+    let log_file = match open_log_file(&log_name){
+        Some(file) => file,
+        None => {
+            std::process::exit(1);
+        }
+    };
+
+    // Create log appender that writes or appends to daily logs
+    let (non_blocking, _guard) = tracing_appender::non_blocking(log_file);
+
+    fmt()
+        .json()
+        .with_writer(non_blocking)
+        .with_max_level(tracing::Level::INFO)
+        .init();
+
+    // Parse CLI input
+    let cli = CLI::parse();
+
+    match cli.command {
+        Commands::Init { path } => {
+            info!("Calculating initial hash values.");
+            let _ = for_each_file(&path, &mut init);
+        },
+        Commands::Update { path } => {
+            info!("Updating existing hash values.");
+            let _ = for_each_file(&path, &mut update);
+        },
+        Commands::Check { path } => {
+            info!("Checking and verifying hash values.");
+            let _ = for_each_file(&path, &mut check);
+        }
+    }
 }
 
 fn calculate_hash(path: &Path) -> [u8; 32] {
@@ -69,6 +101,20 @@ fn calculate_hash(path: &Path) -> [u8; 32] {
     Sha256::digest(contents).into()
 }
 
+fn open_log_file(path: &str) -> Option<std::fs::File> {
+    match OpenOptions::new()
+        .create(true)
+        .append(true)
+        .mode(0o640)
+        .open(path)
+        {
+            Ok(file) => Some(file),
+            Err(e) => {
+                error!(file = path, error = %e, "Failed to open log file");
+                None
+            }
+        }
+}
 
 fn for_each_file<F>(path: &Path, fun: &mut F) -> io::Result<()>
 where
@@ -87,6 +133,7 @@ where
             }
             // If it's a directory, recurse
             else if entry_path.is_dir() {
+                info!("New directory '{entry_path:?}' found in the scope. Added to processing queue.");
                 for_each_file(&entry_path, fun)?;
             }
         }
