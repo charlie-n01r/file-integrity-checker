@@ -16,3 +16,15 @@ CREATE TABLE IF NOT EXISTS files (
 EOF
 
 chmod 600 "$DB"
+
+SOURCE="${(%):-%x}"
+while [ -L "$SOURCE" ]; do
+  DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
+  SOURCE="$(readlink "$SOURCE")"
+  [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE"
+done
+
+LOG_DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
+
+mkdir -p "$LOG_DIR/log"
+chmod 2750 "$LOG_DIR/log"
