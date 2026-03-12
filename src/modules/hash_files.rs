@@ -20,6 +20,7 @@ fn init(path: &Path, conn: &mut Connection) -> io::Result<()> {
         Some(file_key) => {let _ = db::create_hash_entry(conn, &file_key, &hash);},
         None => error!("Unable to create a new entry for file")
     };
+    println!("Hashes stored successfully.");
     Ok(())
 }
 
@@ -28,15 +29,16 @@ fn update(path: &Path, conn: &mut Connection) -> io::Result<()> {
     let hash = calculate_hash(path);
     match path.to_str() {
         Some(file_key) => {let _ = db::update_hash_value(conn, &file_key, &hash);},
-        None => error!("Unable to create a new entry for file")
+        None => error!("Unable to update entry for file")
     };
     Ok(())
 }
 
 fn check(path: &Path, conn: &mut Connection) -> io::Result<()> {
     info!("Checking hashes for {path:?}");
+    let hash = calculate_hash(path);
     match path.to_str() {
-        Some(file_key) => {let _ = db::check_hash(conn, &file_key);},
+        Some(file_key) => {let _ = db::check_hash(conn, &file_key, &hash);},
         None => error!("Unable to create a new entry for file")
     };
     Ok(())

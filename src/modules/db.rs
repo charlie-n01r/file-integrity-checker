@@ -87,7 +87,10 @@ pub fn update_hash_value(conn: &mut Connection, file_key: &str, hash_value: &[u8
     }
 
     match transaction.commit() {
-        Ok(_) => info!("Successfully inserted record into database"),
+        Ok(_) => {
+            println!("Hash updated successfully for file '{file_key}'");
+            info!("Successfully inserted record into database")
+        },
         Err(e) => {
             error!(?e, "Failed to commit transaction");
             return Err(e);
@@ -97,31 +100,33 @@ pub fn update_hash_value(conn: &mut Connection, file_key: &str, hash_value: &[u8
 }
 
 ///Check
-pub fn check_hash(conn: &Connection, file_key: &str) -> Result<()> {
-    let mut statement = match conn.prepare("SELECT path, hash FROM files WHERE path = (?1)") {
+pub fn check_hash(conn: &Connection, file_key: &str, hash_value: &[u8; 32]) -> Result<()> {
+    let mut statement = match conn.prepare("SELECT hash FROM files WHERE path = (?1)") {
         Ok(stmt) => stmt,
         Err(e) => {
             error!(?e, "Failed to prepare insert statement");
             return Err(e);
         }
     };
-    let files = statement.query_map([file_key], |row| {
-        let path: String = row.get(0)?;
-        let hash: Vec<u8> = row.get(1)?;
-        Ok((path, hash))
-    })?;
-
-    for row in files {
-        let (path, hash) = row?;
-
-        // Print hash as hex
-        let hex_hash: String = hash.iter()
-            .map(|b| format!("{:02x}", b))
-            .collect();
-
-        println!("Path: {}", path);
-        println!("Hash: {}", hex_hash);
-        println!();
+    let stored_hash: Vec<u8> = match statement.query_row([file_key], |row| row.get(0)) {
+        Ok(hash) => hash,
+        Err(rusqlite::Error::QueryReturnedNoRows) => {
+            error!("No entry found for path: {}", file_key);
+            return Ok(()); // or return Err(...) if you want
+        }
+        Err(e) => {
+            error!(?e, "Error querying hash for path: {}", file_key);
+            return Err(e);
+        }
     };
+
+    if stored_hash.as_slice() == hash_value {
+        info!("File '{file_key}' remains unmodified");
+        println!("Status: Unmodified")
+    } else {
+        error!("File '{file_key}' has been modified");
+        println!("Status: Modified (Hash mismatch). Check logs for more info.")
+    }
+
     Ok(())
 }
