@@ -1,8 +1,11 @@
+use rusqlite::{Connection, Result};
 use tracing::{info, error};
 use sha2::{Sha256, Digest};
 use std::path::Path;
 use std::io;
 use std::fs;
+
+use super::db;
 
 fn calculate_hash(path: &Path) -> [u8; 32] {
     let contents = fs::read(path).unwrap();
@@ -10,35 +13,43 @@ fn calculate_hash(path: &Path) -> [u8; 32] {
 }
 
 /// CLI Subcommands
-fn init(path: &Path) -> io::Result<()> {
+fn init(path: &Path, conn: &mut Connection) -> io::Result<()> {
     info!("Hash calculated for {path:?}");
     let hash = calculate_hash(path);
-    let hex: String = hash.iter()
-        .map(|b| format!("{:02x}", b))
-        .collect();
-    info!("SHA256 value: {hex}");
-
+    match path.to_str() {
+        Some(file_key) => {let _ = db::create_hash_entry(conn, &file_key, &hash);},
+        None => error!("Unable to create a new entry for file")
+    };
     Ok(())
 }
 
-fn update(path: &Path) -> io::Result<()> {
+fn update(path: &Path, conn: &mut Connection) -> io::Result<()> {
     info!("Updating hashes for {path:?}");
+    let hash = calculate_hash(path);
+    match path.to_str() {
+        Some(file_key) => {let _ = db::update_hash_value(conn, &file_key, &hash);},
+        None => error!("Unable to create a new entry for file")
+    };
     Ok(())
 }
 
-fn check(path: &Path) -> io::Result<()> {
+fn check(path: &Path, conn: &mut Connection) -> io::Result<()> {
     info!("Checking hashes for {path:?}");
+    match path.to_str() {
+        Some(file_key) => {let _ = db::check_hash(conn, &file_key);},
+        None => error!("Unable to create a new entry for file")
+    };
     Ok(())
 }
 
 
 ///Function that applies the CLI subcommand to a file or a directory
-fn for_each_file<F>(path: &Path, fun: &mut F) -> io::Result<()>
+fn for_each_file<F>(path: &Path, conn: &mut Connection, fun: &mut F) -> io::Result<()>
 where
-    F: FnMut(&Path) -> io::Result<()>,
+    F: FnMut(&Path, &mut Connection) -> io::Result<()>,
 {
     if path.is_file() {
-        fun(path)?;
+        fun(path, conn)?;
     } else if path.is_dir() {
         for entry in fs::read_dir(path)? {
             let entry = entry?;
@@ -46,12 +57,12 @@ where
 
             // If entry is a file, apply the closure
             if entry_path.is_file() {
-                fun(&entry_path)?;
+                fun(&entry_path, conn)?;
             }
             // If it's a directory, recurse
             else if entry_path.is_dir() {
                 info!("New directory '{entry_path:?}' found in the scope. Added to processing queue.");
-                for_each_file(&entry_path, fun)?;
+                for_each_file(&entry_path, conn, fun)?;
             }
         }
     }
@@ -61,11 +72,14 @@ where
 
 
 ///CLI subcommand executer
-pub fn execute_subcommand(path: &Path, subcommand: &str) {
+pub fn execute_subcommand(path: &Path, subcommand: &str) -> Result<()> {
+    let mut conn = db::create_connection()?;
+
     match subcommand {
-        "init" => {let _ = for_each_file(path, &mut init);},
-        "check" => {let _ = for_each_file(path, &mut check);},
-        "update" => {let _ = for_each_file(path, &mut update);},
-        sub => {error!("Error executing subcommand, received illegal subcommand {sub}.");}
+        "init" => {let _ = for_each_file(path, &mut conn, &mut init);},
+        "update" => {let _ = for_each_file(path, &mut conn, &mut update);},
+        "check" => {let _ = for_each_file(path, &mut conn, &mut check);},
+        sub => error!("Error executing subcommand, received illegal subcommand {sub}.")
     };
+    Ok(())
 }

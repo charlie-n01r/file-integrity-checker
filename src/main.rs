@@ -62,15 +62,15 @@ fn main() {
     match cli.command {
         Commands::Init { path } => {
             info!("Calculating initial hash values.");
-            hash_files::execute_subcommand(&path, "init");
+            let _ = hash_files::execute_subcommand(&path, "init");
         },
         Commands::Check { path } => {
             info!("Checking and verifying hash values.");
-            hash_files::execute_subcommand(&path, "check");
+            let _ = hash_files::execute_subcommand(&path, "check");
         },
         Commands::Update { path } => {
             info!("Updating existing hash values.");
-            hash_files::execute_subcommand(&path, "update");
+            let _ = hash_files::execute_subcommand(&path, "update");
         }
     }
 }

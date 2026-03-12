@@ -9,10 +9,14 @@ mkdir -p "$DATA_DIR"
 chmod 700 "$DATA_DIR"
 
 sqlite3 "$DB" <<EOF
+PRAGMA journal_mode=WAL;
+
 CREATE TABLE IF NOT EXISTS files (
     path TEXT PRIMARY KEY,
     hash BLOB NOT NULL
 );
+
+CREATE INDEX IF NOT EXISTS idx_files_hash ON files(hash);
 EOF
 
 chmod 600 "$DB"
