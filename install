@@ -1,7 +1,8 @@
 #!/usr/bin/env zsh
-set -e
+set -euo pipefail
 
-DATA_DIR="$HOME/.local/share/hashcheck"
+# --- 1. Create data directory and initialize database ---
+DATA_DIR="$HOME/.local/share/integrity_check"
 DB="$DATA_DIR/hashes.db"
 
 mkdir -p "$DATA_DIR"
@@ -21,14 +22,26 @@ EOF
 
 chmod 600 "$DB"
 
-SOURCE="${(%):-%x}"
-while [ -L "$SOURCE" ]; do
-  DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
-  SOURCE="$(readlink "$SOURCE")"
-  [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE"
-done
+# --- 2. Download binary ---
+BIN_NAME="integrity-check"
+REPO="YOUR_USER/YOUR_REPO"
+URL="https://github.com/charlie-n01r/file-integrity-checker/releases/download/v0.1.2-alpha/integrity-check"
 
-LOG_DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
+echo "Downloading $BIN_NAME..."
+curl -L "$URL" -o "$BIN_NAME"
+chmod +x "$BIN_NAME"
 
-mkdir -p "$LOG_DIR/log"
-chmod 2750 "$LOG_DIR/log"
+# --- 3. Move binary into PATH ---
+INSTALL_DIR="${HOME}/.local/bin"
+mkdir -p "$INSTALL_DIR"
+mv "$BIN_NAME" "$INSTALL_DIR/$BIN_NAME"
+
+echo "Installed $BIN_NAME to $INSTALL_DIR"
+echo "Make sure $INSTALL_DIR is in your PATH."
+
+# --- 5. Log directory setup ---
+LOG_DIR="$DATA_DIR/log"
+mkdir -p "$LOG_DIR"
+chmod 2750 "$LOG_DIR"
+
+echo "$BIN_NAME installed successfully!"
