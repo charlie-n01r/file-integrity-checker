@@ -2,6 +2,11 @@ use rusqlite::{Connection, Result};
 use std::{env, path::PathBuf};
 use tracing::{info, error};
 
+pub enum FlowControl {
+    Continue,
+    Stop
+}
+
 ///Create connection to the hash database
 pub fn create_connection() -> Result<Connection> {
     let mut db_path = PathBuf::new();
@@ -87,10 +92,7 @@ pub fn update_hash_value(conn: &mut Connection, file_key: &str, hash_value: &[u8
     }
 
     match transaction.commit() {
-        Ok(_) => {
-            println!("Hash updated successfully for file '{file_key}'");
-            info!("Successfully inserted record into database")
-        },
+        Ok(_) => info!("Hash updated successfully for file '{file_key}'"),
         Err(e) => {
             error!(?e, "Failed to commit transaction");
             return Err(e);
@@ -100,7 +102,7 @@ pub fn update_hash_value(conn: &mut Connection, file_key: &str, hash_value: &[u8
 }
 
 ///Check
-pub fn check_hash(conn: &Connection, file_key: &str, hash_value: &[u8; 32]) -> Result<()> {
+pub fn check_hash(conn: &Connection, file_key: &str, hash_value: &[u8; 32]) -> Result<FlowControl> {
     let mut statement = match conn.prepare("SELECT hash FROM files WHERE path = (?1)") {
         Ok(stmt) => stmt,
         Err(e) => {
@@ -112,7 +114,7 @@ pub fn check_hash(conn: &Connection, file_key: &str, hash_value: &[u8; 32]) -> R
         Ok(hash) => hash,
         Err(rusqlite::Error::QueryReturnedNoRows) => {
             error!("No entry found for path: {}", file_key);
-            return Ok(()); // or return Err(...) if you want
+            return Ok(FlowControl::Stop); // or return Err(...) if you want
         }
         Err(e) => {
             error!(?e, "Error querying hash for path: {}", file_key);
@@ -122,11 +124,10 @@ pub fn check_hash(conn: &Connection, file_key: &str, hash_value: &[u8; 32]) -> R
 
     if stored_hash.as_slice() == hash_value {
         info!("File '{file_key}' remains unmodified");
-        println!("Status: Unmodified")
+        Ok(FlowControl::Continue)
     } else {
         error!("File '{file_key}' has been modified");
-        println!("Status: Modified (Hash mismatch). Check logs for more info.")
+        println!("Status: File '{file_key}' was modified (Hash mismatch).");
+        Ok(FlowControl::Stop)
     }
-
-    Ok(())
 }
