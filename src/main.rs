@@ -3,6 +3,7 @@ use tracing_subscriber::fmt;
 use tracing::{info, error};
 use clap::{Parser, Subcommand};
 use std::fs::OpenOptions;
+use std::env::home_dir;
 use std::path::PathBuf;
 
 mod modules;
@@ -39,10 +40,22 @@ enum Commands {
 fn main() {
     // Create today's log file and enforce permissions
     let today = chrono::Local::now().format("%Y-%m-%d");
-    let log_name = format!("logs/{}-log.json", today);
+    let mut log_path = PathBuf::new();
+    match home_dir() {
+        Some(home_path) => {
+            log_path.push(home_path);
+            log_path.push(".local/share/hashcheck");
+        },
+        None => {
+            println!("Could not find home directory for log path {}", log_path.display());
+            std::process::exit(1)
+        }
+    };
+    let log_name = format!("{}/{}-log.json", log_path.to_str().unwrap_or_else(|| "/logs"), today);
     let log_file = match open_log_file(&log_name){
         Some(file) => file,
         None => {
+            println!("Could not open log file {}", log_name);
             std::process::exit(1);
         }
     };
